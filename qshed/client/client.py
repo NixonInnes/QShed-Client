@@ -3,6 +3,8 @@ import requests
 import json
 from collections.abc import MutableMapping
 
+from .models import Schedule as SchedulerModel
+
 
 def _flatten_dict_gen(d, parent_key, sep):
     for k, v in d.items():
@@ -23,19 +25,21 @@ class Scheduler:
 		self.comms = comms
 
 	def add(self, url, method="get", params={}, data={}, headers={}):
-		data = dict(
+		scheduler = SchedulerModel(
 			method=method,
 			url=url,
 			params=params,
 			data=data,
 			headers=headers
 		)
-		resp = self.comms.post(f"scheduler/add", data=json.dumps(data))
+		resp = self.comms.post(f"scheduler/add", data=scheduler.json())
 		return resp
 
 	def list(self):
 		resp = self.comms.get("scheduler/list")
-		return resp
+		print(resp)
+		schedulers = [SchedulerModel.parse_obj(scheduler["kwargs"]) for scheduler in resp]
+		return schedulers
 
 class Collection:
 	def __init__(self, comms, database_name, collection_name):
