@@ -1,10 +1,16 @@
+import yaml
 from typing import Dict, Optional
 from pydantic import BaseModel, Field, validator
 
 from .utils import string_hash
 
 
-class Request(BaseModel):
+class QShedModel(BaseModel):
+    def yaml(self):
+        return yaml.dump(self.dict())
+
+
+class Request(QShedModel):
     url: str
     method: str
     params: Dict[str, str] = Field({})
@@ -21,7 +27,7 @@ class Request(BaseModel):
         return string_hash(self.json())
 
 
-class Schedule(BaseModel):
+class Schedule(QShedModel):
     request: Request
     interval: int
     id: Optional[str]

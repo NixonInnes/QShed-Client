@@ -1,9 +1,11 @@
+from typing import List
 import pandas as pd
 import requests
 import json
 from collections.abc import MutableMapping
+from pydantic import parse_obj_as
 
-from .models import Schedule as SchedulerModel
+from .models import Schedule, Request
 
 
 def _flatten_dict_gen(d, parent_key, sep):
@@ -24,21 +26,24 @@ class Scheduler:
 	def __init__(self, comms):
 		self.comms = comms
 
-	def add(self, url, method="get", params={}, data={}, headers={}):
-		scheduler = SchedulerModel(
+	def add(self, url, interval, method="get", params={}, data={}, headers={}):
+		request = Request(
 			method=method,
 			url=url,
 			params=params,
 			data=data,
 			headers=headers
 		)
-		resp = self.comms.post(f"scheduler/add", data=scheduler.json())
+		schedule = Schedule(
+			interval=interval,
+			request=request
+		)
+		resp = self.comms.post(f"scheduler/add", data=schedule.json(exclude_none=True))
 		return resp
 
 	def list(self):
 		resp = self.comms.get("scheduler/list")
-		print(resp)
-		schedulers = [SchedulerModel.parse_obj(scheduler["kwargs"]) for scheduler in resp]
+		schedulers = parse_obj_as(List[Schedule], resp)
 		return schedulers
 
 class Collection:
@@ -134,7 +139,13 @@ class Comms:
 			raise Exception(f"Error {resp.status_code}: {resp.content}")
 
 	def post(self, url_ext, params={}, data={}):
-		resp = requests.post(self.address+url_ext, data=json.dumps(data), params=params, headers=self.headers)
+		if not isinstance(data, str):
+			data = json.dumps(data)
+		resp = requests.post(
+			self.address+url_ext, 
+			data=data, 
+			params=params, 
+			headers=self.headers)
 		try:
 			return resp.json()
 		except:
