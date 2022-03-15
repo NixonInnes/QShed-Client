@@ -116,7 +116,7 @@ class Collection:
 		data = self.get(limit=limit, **params)
 		return pd.DataFrame([flatten_dict(item) for item in data])
 
-	@typed_response(response_model=responseModels.DictResponse)
+	@typed_response(response_model=responseModels.StrResponse)
 	def insert_one(self, data:dict):
 		return self.comms.post(f"database/{self.database_name}/{self.name}/insert", data=data)
 
