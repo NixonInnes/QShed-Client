@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
 import pandas as pd
 import requests
 import json
@@ -115,6 +115,12 @@ class Collection:
 	def dataframe(self, limit:int=10, **params):
 		data = self.get(limit=limit, **params)
 		return pd.DataFrame([flatten_dict(item) for item in data])
+
+	def insert(self, data:Union[list,dict]):
+		if isinstance(data, list):
+			return self.insert_many(data)
+		else:
+			return self.insert_one(data)
 
 	@typed_response(response_model=responseModels.StrResponse)
 	def insert_one(self, data:dict):
