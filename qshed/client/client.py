@@ -1,32 +1,55 @@
-from typing import List
+from typing import List, Dict, Optional
 import pandas as pd
 import requests
 import json
-from collections.abc import MutableMapping
 from pydantic import parse_obj_as
 
 from .models import Schedule, Request
+from .utils import flatten_dict
 
 
-def _flatten_dict_gen(d, parent_key, sep):
-    for k, v in d.items():
-        k = k.replace(sep, "").replace(" ", "_")
-        new_key = parent_key + sep + k if parent_key else k
-        if isinstance(v, MutableMapping):
-            yield from flatten_dict(v, new_key, sep=sep).items()
-        else:
-            yield new_key, v
+class Comms:
+	def __init__(self, address: str):
+		if not address.endswith("/"):
+			address += "/"
+		self.address = address
+		self.headers = {'Content-Type': 'application/json'}
+
+	def get(self, url_ext:str, params:dict={}):
+		resp = requests.get(self.address+url_ext, params=params)
+		try:
+			return resp.json()
+		except:
+			raise Exception(f"Error {resp.status_code}: {resp.content}")
+
+	def post(self, url_ext:str, params:dict={}, data:dict={}):
+		if not isinstance(data, str):
+			data = json.dumps(data)
+		resp = requests.post(
+			self.address+url_ext, 
+			data=data, 
+			params=params, 
+			headers=self.headers)
+		try:
+			return resp.json()
+		except:
+			raise Exception(f"Error {resp.status_code}: {resp.content}")
 
 
-def flatten_dict(d: MutableMapping, parent_key: str = '', sep: str = '.'):
-    return dict(_flatten_dict_gen(d, parent_key, sep))
 
-
-class Scheduler:
-	def __init__(self, comms):
+class SchedulerExt:
+	def __init__(self, comms:Comms) -> None:
 		self.comms = comms
 
-	def add(self, url, interval, method="get", params={}, data={}, headers={}):
+	def add(
+		self, 
+		url: str, 
+		interval: int, 
+		method: str = "get", 
+		params: Dict[str, str] = {}, 
+		data: Dict[str, Optional[str]] = {}, 
+		headers: Dict[str, str] = {}
+	) -> Schedule:
 		request = Request(
 			method=method,
 			url=url,
@@ -38,28 +61,32 @@ class Scheduler:
 			interval=interval,
 			request=request
 		)
-		resp = self.comms.post(f"scheduler/add", data=schedule.json(exclude_none=True))
-		return resp
+		ok, resp = self.comms.post(f"scheduler/add", data=schedule.json(exclude_none=True))
+		if ok:
+			return resp
+		else:
+			raise Exception(resp)
 
-	def list(self):
+	def list(self) -> List[Schedule]:
 		resp = self.comms.get("scheduler/list")
 		schedulers = parse_obj_as(List[Schedule], resp)
 		return schedulers
 
+
 class Collection:
-	def __init__(self, comms, database_name, collection_name):
+	def __init__(self, comms:Comms, database_name:str, collection_name:str) -> None:
 		self.comms = comms
 		self.database_name = database_name
 		self.name = collection_name
 
-	def get(self, limit=10, **params):
+	def get(self, limit:int=10, **params:Dict[str,str]):
 		return self.comms.get(f"database/{self.database_name}/{self.name}/get/{limit}", params=params)
 
 	@property
 	def data(self):
 		return self.get()
 
-	def dataframe(self, limit=10, **params):
+	def dataframe(self, limit:int=10, **params):
 		data = self.get(limit=limit, **params)
 		return pd.DataFrame([flatten_dict(item) for item in data])
 
@@ -76,7 +103,7 @@ class Collection:
 		resp = self.comms.post(url, data=data)
 		return resp
 
-	def delete(self, query, mode="many"):
+	def delete(self, query:str, mode:str="many"):
 		"""
 		mode:
 			"many" (default) - Will delete all documents that match the query
@@ -98,7 +125,7 @@ class Collection:
 
 
 class Database:
-	def __init__(self, comms, database_name):
+	def __init__(self, comms:Comms, database_name:str):
 		self.comms = comms
 		self.name = database_name
 
@@ -110,50 +137,25 @@ class Database:
 
 
 class DatabaseExt:
-	def __init__(self, comms):
+	def __init__(self, comms:Comms):
 		self.comms = comms
 
-	def __getitem__(self, key):
+	def __getitem__(self, key:str):
 		return Database(self.comms, key)
 
 	def list(self):
 		data = self.comms.get("database/list")
 		return data
 
-	def create(self, database_name):
+	def create(self, database_name:str):
 		return self.comms.post("database/create", data={"database_name":database_name})
 
 
-class Comms:
-	def __init__(self, address):
-		if not address.endswith("/"):
-			address += "/"
-		self.address = address
-		self.headers = {'Content-Type': 'application/json'}
 
-	def get(self, url_ext, params={}):
-		resp = requests.get(self.address+url_ext, params=params)
-		try:
-			return resp.json()
-		except:
-			raise Exception(f"Error {resp.status_code}: {resp.content}")
-
-	def post(self, url_ext, params={}, data={}):
-		if not isinstance(data, str):
-			data = json.dumps(data)
-		resp = requests.post(
-			self.address+url_ext, 
-			data=data, 
-			params=params, 
-			headers=self.headers)
-		try:
-			return resp.json()
-		except:
-			raise Exception(f"Error {resp.status_code}: {resp.content}")
 
 
 class QShedClient:
 	def __init__(self, gateway_address):
 		self.comms = Comms(gateway_address)
 		self.database = DatabaseExt(self.comms)
-		self.scheduler = Scheduler(self.comms)
+		self.scheduler = SchedulerExt(self.comms)
