@@ -2,7 +2,7 @@ import yaml
 from typing import Dict, Optional
 from pydantic import BaseModel, Field, validator
 
-from .utils import string_hash
+from ..utils import string_hash
 
 
 class QShedModel(BaseModel):

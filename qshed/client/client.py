@@ -4,7 +4,8 @@ import requests
 import json
 from pydantic import parse_obj_as
 
-from .models import Schedule, Request
+from .decorators import typed_response
+from .models import data as dataModels, response as responseModels
 from .utils import flatten_dict
 
 
@@ -36,11 +37,11 @@ class Comms:
 			raise Exception(f"Error {resp.status_code}: {resp.content}")
 
 
-
 class SchedulerExt:
 	def __init__(self, comms:Comms) -> None:
 		self.comms = comms
 
+	@typed_response(response_model=responseModels.StrResponse)
 	def add(
 		self, 
 		url: str, 
@@ -49,79 +50,23 @@ class SchedulerExt:
 		params: Dict[str, str] = {}, 
 		data: Dict[str, Optional[str]] = {}, 
 		headers: Dict[str, str] = {}
-	) -> Schedule:
-		request = Request(
+	):
+		request = dataModels.Request(
 			method=method,
 			url=url,
 			params=params,
 			data=data,
 			headers=headers
 		)
-		schedule = Schedule(
+		schedule = dataModels.Schedule(
 			interval=interval,
 			request=request
 		)
-		ok, resp = self.comms.post(f"scheduler/add", data=schedule.json(exclude_none=True))
-		if ok:
-			return resp
-		else:
-			raise Exception(resp)
+		return self.comms.post(f"scheduler/add", data=schedule.json(exclude_none=True))
 
-	def list(self) -> List[Schedule]:
-		resp = self.comms.get("scheduler/list")
-		schedulers = parse_obj_as(List[Schedule], resp)
-		return schedulers
-
-
-class Collection:
-	def __init__(self, comms:Comms, database_name:str, collection_name:str) -> None:
-		self.comms = comms
-		self.database_name = database_name
-		self.name = collection_name
-
-	def get(self, limit:int=10, **params:Dict[str,str]):
-		return self.comms.get(f"database/{self.database_name}/{self.name}/get/{limit}", params=params)
-
-	@property
-	def data(self):
-		return self.get()
-
-	def dataframe(self, limit:int=10, **params):
-		data = self.get(limit=limit, **params)
-		return pd.DataFrame([flatten_dict(item) for item in data])
-
-	def insert(self, data, mode="single"):
-		url = f"database/{self.database_name}/{self.name}/insert"
-		
-		if mode == "single":
-			url = url
-		elif mode == "multi":
-			url += "/many"
-		else:
-			raise Exception("Invalid mode")
-
-		resp = self.comms.post(url, data=data)
-		return resp
-
-	def delete(self, query:str, mode:str="many"):
-		"""
-		mode:
-			"many" (default) - Will delete all documents that match the query
-			"one" - Will delete first document that matches the query
-		"""
-		url = f"database/{self.database_name}/{self.name}/delete"
-		if mode == "many":
-			url += "/many"
-		elif mode == "one":
-			url += "/one"
-		else:
-			raise Exception("Invalid mode")
-		resp = self.comms.post(url, data={"query":query})
-		return resp
-
-	def delete_all(self):
-		resp = self.comms.post(f"database/{self.database_name}/{self.name}/delete/all", data={"confirm": True})
-		return resp
+	@typed_response(response_model=responseModels.SchedulesResponse)
+	def list(self):
+		return self.comms.get("scheduler/list")
 
 
 class Database:
@@ -129,9 +74,10 @@ class Database:
 		self.comms = comms
 		self.name = database_name
 
-	def __getitem__(self, key):
+	def __getitem__(self, key:str):
 		return Collection(self.comms, self.name, key)
 
+	@typed_response(response_model=responseModels.ListResponse)
 	def list(self):
 		return self.comms.get(f"database/{self.name}/list")
 
@@ -143,19 +89,56 @@ class DatabaseExt:
 	def __getitem__(self, key:str):
 		return Database(self.comms, key)
 
+	@typed_response(response_model=responseModels.ListResponse)
 	def list(self):
-		data = self.comms.get("database/list")
-		return data
+		return self.comms.get("database/list")
 
+	@typed_response(response_model=responseModels.StrResponse)
 	def create(self, database_name:str):
-		return self.comms.post("database/create", data={"database_name":database_name})
+		return self.comms.post("database/create", params={"database_name":database_name})
 
 
+class Collection:
+	def __init__(self, comms:Comms, database_name:str, collection_name:str) -> None:
+		self.comms = comms
+		self.database_name = database_name
+		self.name = collection_name
 
+	@typed_response(response_model=responseModels.JSONResponse)
+	def get(self, limit:int=10, query:Optional[Dict[str,str]]={}):
+		return self.comms.get(f"database/{self.database_name}/{self.name}/get/{limit}")
+
+	@property
+	def data(self):
+		return self.get()
+
+	def dataframe(self, limit:int=10, **params):
+		data = self.get(limit=limit, **params)
+		return pd.DataFrame([flatten_dict(item) for item in data])
+
+	@typed_response(response_model=responseModels.DictResponse)
+	def insert_one(self, data:dict):
+		return self.comms.post(f"database/{self.database_name}/{self.name}/insert", data=data)
+
+	@typed_response(response_model=responseModels.ListResponse)
+	def insert_many(self, data:list):
+		return self.comms.post(f"database/{self.database_name}/{self.name}/insert/many", data=data)
+
+	@typed_response(response_model=responseModels.Response)
+	def delete_one(self, query:str):
+		return self.comms.post(f"database/{self.database_name}/{self.name}/delete/one", data={"query":query})
+
+	@typed_response(response_model=responseModels.IntResponse)
+	def delete_many(self, query:str):
+		return self.comms.post(f"database/{self.database_name}/{self.name}/delete/many", data={"query":query})
+
+	@typed_response(response_model=responseModels.IntResponse)
+	def delete_all(self, confirm:bool=False):
+		return self.comms.post(f"database/{self.database_name}/{self.name}/delete/all", params={"confirm": confirm})
 
 
 class QShedClient:
-	def __init__(self, gateway_address):
+	def __init__(self, gateway_address:str):
 		self.comms = Comms(gateway_address)
 		self.database = DatabaseExt(self.comms)
 		self.scheduler = SchedulerExt(self.comms)
