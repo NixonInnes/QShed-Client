@@ -3,6 +3,7 @@ import pandas as pd
 import requests
 import json
 from pydantic import parse_obj_as
+from datetime import datetime
 
 from .decorators import typed_response
 from .models import data as dataModels, response as responseModels
@@ -18,9 +19,9 @@ class Comms:
 
 	def get(self, url_ext:str, params:dict={}):
 		resp = requests.get(self.address+url_ext, params=params)
-		try:
-			return resp.json()
-		except:
+		if resp.ok:
+			return resp.text
+		else:
 			raise Exception(f"Error {resp.status_code}: {resp.content}")
 
 	def post(self, url_ext:str, params:dict={}, data:dict={}):
@@ -31,9 +32,9 @@ class Comms:
 			data=data, 
 			params=params, 
 			headers=self.headers)
-		try:
-			return resp.json()
-		except:
+		if resp.ok:
+			return resp.text
+		else:
 			raise Exception(f"Error {resp.status_code}: {resp.content}")
 
 
@@ -143,8 +144,23 @@ class Collection:
 		return self.comms.post(f"database/{self.database_name}/{self.name}/delete/all", params={"confirm": confirm})
 
 
+class TimeseriesExt:
+	def __init__(self, comms:Comms):
+		self.comms = comms
+
+	@typed_response(response_model=responseModels.TagResponse)
+	def get(self, tag_names:Union[str,List[str]], start:Optional[datetime]=None, end:Optional[datetime]=None):
+		params = {}
+		if start:
+			params["start"] = datetime.strftime(start, "%y/%m/%d %H:%M:%S")
+		if end:
+			params["end"] = datetime.strftime(end, "%y/%m/%d %H:%M:%S")
+		return self.comms.get(f"timeseries/get/{tag_name}", params=params)
+
+
 class QShedClient:
 	def __init__(self, gateway_address:str):
 		self.comms = Comms(gateway_address)
 		self.database = DatabaseExt(self.comms)
 		self.scheduler = SchedulerExt(self.comms)
+		self.ts = TimeseriesExt(self.comms)
