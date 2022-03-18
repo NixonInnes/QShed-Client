@@ -17,6 +17,10 @@ class Response(BaseModel):
         return content
 
 
+class BoolResponse(Response):
+    content: bool
+
+
 class DictResponse(Response):
     content: Dict[str, str]
 
