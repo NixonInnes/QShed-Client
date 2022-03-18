@@ -1,10 +1,8 @@
-import json
 import pandas as pd
-from datetime import datetime
-from pydantic import BaseModel, Json
-from typing import List, Dict, Optional, Union, Any
+from pydantic import BaseModel
+from typing import List, Dict, Optional
 
-from .data import Schedule, Tag
+from .data import Schedule
 
 
 class Response(BaseModel):
@@ -17,31 +15,38 @@ class Response(BaseModel):
 
     def _decode(self, content):
         return content
-    
+
 
 class DictResponse(Response):
-    content: Dict[str,str]
+    content: Dict[str, str]
+
 
 class ListResponse(Response):
     content: List[str]
 
+
 class StrResponse(Response):
     content: str
+
 
 class IntResponse(Response):
     content: int
 
+
 class JSONResponse(Response):
     content: Any
+
 
 class ScheduleResponse(Response):
     content: Optional[Schedule] = None
 
+
 class SchedulesResponse(Response):
     content: List[Schedule] = []
 
+
 class TagResponse(Response):
     content: str
-    
+
     def _decode(self, content):
         return pd.read_json(content)

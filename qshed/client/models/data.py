@@ -1,13 +1,12 @@
 import yaml
-import pandas as pd
-from typing import Dict, Optional, Union, Any
+from typing import Dict, Optional
 from pydantic import BaseModel, Field, validator
 
 from ..utils import string_hash
 
 
 class QShedModel(BaseModel):
-    def yaml(self):
+    def yaml(self) -> str:
         return yaml.dump(self.dict())
 
 
@@ -19,12 +18,12 @@ class Request(QShedModel):
     headers: Dict[str, str] = Field({})
 
     @validator("method")
-    def validate_method(cls, method: str):
+    def validate_method(cls, method: str) -> str:
         if method.lower() not in ("get", "post"):
             raise ValueError("must be either 'get' or 'post'")
         return method.lower()
 
-    def get_collection_id(self):
+    def get_collection_id(self) -> str:
         return string_hash(self.json())
 
 
@@ -35,5 +34,5 @@ class Schedule(QShedModel):
     name: Optional[str]
     next_run: Optional[float]
 
-    def get_collection_id(self):
+    def get_collection_id(self) -> str:
         return self.request.get_collection_id()
