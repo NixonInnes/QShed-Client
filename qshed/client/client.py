@@ -105,18 +105,18 @@ class NoSQLCollection:
             f"nosql/{self.database_name}/{self.name}/insert/many", data=data
         )
 
-    @typed_response(response_model=responseModels.Response)
-    def delete_one(self, query: str) -> None:
+    @typed_response(response_model=responseModels.BoolResponse)
+    def delete_one(self, key: str, query: str) -> None:
         return self.comms.post(
             f"nosql/{self.database_name}/{self.name}/delete/one",
-            data={"query": query},
+            data={"key":key, "query": query},
         )
 
     @typed_response(response_model=responseModels.IntResponse)
-    def delete_many(self, query: str) -> int:
+    def delete_many(self, , key: str, query: str) -> int:
         return self.comms.post(
             f"nosql/{self.database_name}/{self.name}/delete/many",
-            data={"query": query},
+            data={"key":key, "query": query},
         )
 
     @typed_response(response_model=responseModels.IntResponse)
@@ -180,6 +180,7 @@ class Timeseries:
 class QShedClient:
     def __init__(self, gateway_address: str) -> None:
         self.comms = Comms(gateway_address)
+        self.gateway = Gateway(self.comms)
         self.nosql = NoSQL(self.comms)
         self.scheduler = Scheduler(self.comms)
         self.ts = Timeseries(self.comms)
