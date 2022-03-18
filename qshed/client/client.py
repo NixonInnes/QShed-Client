@@ -61,37 +61,6 @@ class Scheduler:
         return self.comms.get("scheduler/list")
 
 
-class NoSQL:
-    def __init__(self, comms: Comms) -> None:
-        self.comms = comms
-
-    def __getitem__(self, key: str) -> NoSQLDatabase:
-        return NoSQLDatabase(self.comms, key)
-
-    @typed_response(response_model=responseModels.ListResponse)
-    def list(self) -> List[str]:
-        return self.comms.get("database/list")
-
-    @typed_response(response_model=responseModels.StrResponse)
-    def create(self, database_name: str) -> str:
-        return self.comms.post(
-            "database/create", params={"database_name": database_name}
-        )
-
-
-class NoSQLDatabase:
-    def __init__(self, comms: Comms, database_name: str) -> None:
-        self.comms = comms
-        self.name = database_name
-
-    def __getitem__(self, key: str) -> NoSQLCollection:
-        return NoSQLCollection(self.comms, self.name, key)
-
-    @typed_response(response_model=responseModels.ListResponse)
-    def list(self) -> List[str]:
-        return self.comms.get(f"database/{self.name}/list")
-
-
 class NoSQLCollection:
     def __init__(self, comms: Comms, database_name: str, collection_name: str) -> None:
         self.comms = comms
@@ -100,7 +69,7 @@ class NoSQLCollection:
 
     @typed_response(response_model=responseModels.JSONResponse)
     def get(self, limit: int = 10, query: Optional[Dict[str, str]] = {}) -> Union[Dict, List]:
-        return self.comms.get(f"database/{self.database_name}/{self.name}/get/{limit}")
+        return self.comms.get(f"nosql/{self.database_name}/{self.name}/get/{limit}")
 
     @property
     def data(self) -> Union[Dict, List]:
@@ -119,34 +88,65 @@ class NoSQLCollection:
     @typed_response(response_model=responseModels.StrResponse)
     def insert_one(self, data: dict) -> str:
         return self.comms.post(
-            f"database/{self.database_name}/{self.name}/insert", data=data
+            f"nosql/{self.database_name}/{self.name}/insert", data=data
         )
 
     @typed_response(response_model=responseModels.ListResponse)
     def insert_many(self, data: list) -> List[str]:
         return self.comms.post(
-            f"database/{self.database_name}/{self.name}/insert/many", data=data
+            f"nosql/{self.database_name}/{self.name}/insert/many", data=data
         )
 
     @typed_response(response_model=responseModels.Response)
     def delete_one(self, query: str) -> None:
         return self.comms.post(
-            f"database/{self.database_name}/{self.name}/delete/one",
+            f"nosql/{self.database_name}/{self.name}/delete/one",
             data={"query": query},
         )
 
     @typed_response(response_model=responseModels.IntResponse)
     def delete_many(self, query: str) -> int:
         return self.comms.post(
-            f"database/{self.database_name}/{self.name}/delete/many",
+            f"nosql/{self.database_name}/{self.name}/delete/many",
             data={"query": query},
         )
 
     @typed_response(response_model=responseModels.IntResponse)
     def delete_all(self, confirm: bool = False) -> int:
         return self.comms.post(
-            f"database/{self.database_name}/{self.name}/delete/all",
+            f"nosql/{self.database_name}/{self.name}/delete/all",
             params={"confirm": confirm},
+        )
+
+
+class NoSQLDatabase:
+    def __init__(self, comms: Comms, database_name: str) -> None:
+        self.comms = comms
+        self.name = database_name
+
+    def __getitem__(self, key: str) -> NoSQLCollection:
+        return NoSQLCollection(self.comms, self.name, key)
+
+    @typed_response(response_model=responseModels.ListResponse)
+    def list(self) -> List[str]:
+        return self.comms.get(f"nosql/{self.name}/list")
+
+
+class NoSQL:
+    def __init__(self, comms: Comms) -> None:
+        self.comms = comms
+
+    def __getitem__(self, key: str) -> NoSQLDatabase:
+        return NoSQLDatabase(self.comms, key)
+
+    @typed_response(response_model=responseModels.ListResponse)
+    def list(self) -> List[str]:
+        return self.comms.get("nosql/list")
+
+    @typed_response(response_model=responseModels.StrResponse)
+    def create(self, database_name: str) -> str:
+        return self.comms.post(
+            "nosql/create", params={"database_name": database_name}
         )
 
 
@@ -157,7 +157,7 @@ class Timeseries:
     @typed_response(response_model=responseModels.TagResponse)
     def get(
         self,
-        tag_names: Union[str, List[str]],
+        tag_name: str,
         start: Optional[datetime] = None,
         end: Optional[datetime] = None,
     ) -> pd.DataFrame:
@@ -172,6 +172,6 @@ class Timeseries:
 class QShedClient:
     def __init__(self, gateway_address: str) -> None:
         self.comms = Comms(gateway_address)
-        self.database = NoSQLDatabase(self.comms)
+        self.nosql = NoSQL(self.comms)
         self.scheduler = Scheduler(self.comms)
         self.ts = Timeseries(self.comms)

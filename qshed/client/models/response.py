@@ -1,6 +1,6 @@
 import pandas as pd
 from pydantic import BaseModel
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 
 from .data import Schedule
 
