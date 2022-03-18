@@ -36,6 +36,14 @@ class Comms:
             raise Exception(f"Error {resp.status_code}: {resp.content}")
 
 
+class Gateway:
+	def __init__(self, comms: Comms) -> None:
+		self.comms = comms
+
+	def ping(self):
+		return self.comms.get(f"ping")
+
+
 class Scheduler:
     def __init__(self, comms: Comms) -> None:
         self.comms = comms
