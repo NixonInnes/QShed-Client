@@ -1,4 +1,5 @@
 import yaml
+import pandas as pd
 from typing import Dict, Optional
 from pydantic import BaseModel, Field, validator
 
@@ -36,3 +37,11 @@ class Schedule(QShedModel):
 
     def get_collection_id(self) -> str:
         return self.request.get_collection_id()
+
+
+class DataFrameModel(QShedModel):
+    json_str: str
+
+    def parse(self):
+        return pd.read_json(self.json_str)
+

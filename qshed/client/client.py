@@ -113,7 +113,7 @@ class NoSQLCollection:
         )
 
     @typed_response(response_model=responseModels.IntResponse)
-    def delete_many(self, , key: str, query: str) -> int:
+    def delete_many(self, key: str, query: str) -> int:
         return self.comms.post(
             f"nosql/{self.database_name}/{self.name}/delete/many",
             data={"key":key, "query": query},
@@ -175,6 +175,14 @@ class Timeseries:
         if end:
             params["end"] = datetime.strftime(end, "%y/%m/%d %H:%M:%S")
         return self.comms.get(f"timeseries/get/{tag_name}", params=params)
+
+    @typed_response(response_model=responseModels.StrResponse)
+    def set(
+        self,
+        tag_name: str,
+        df: pd.DataFrame
+    ) -> str:
+        return self.comms.post(f"timeseries/set/{tag_name}", data={"json_str": df.to_json()})
 
 
 class QShedClient:
