@@ -4,7 +4,7 @@ from time import sleep
 from qshed.client import QShedClient
 
 
-c = QShedClient("http://localhost:5000")
+c = QShedClient("http://localhost:4000")
 
 
 def test_gateway_ping():
