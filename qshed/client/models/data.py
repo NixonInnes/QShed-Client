@@ -1,3 +1,4 @@
+import json
 import yaml
 import pandas as pd
 from typing import Dict, Optional
@@ -44,4 +45,23 @@ class DataFrameModel(QShedModel):
 
     def parse(self):
         return pd.read_json(self.json_str)
+
+
+
+class SQLEntity(QShedModel):
+    id: int
+    name: str
+    data: str
+    type: int
+
+    types = {
+        0: str,
+        1: int,
+        2: float,
+        3: json.loads
+    }
+
+    def parse(self):
+        return self.types[self.type_](self.data)
+
 

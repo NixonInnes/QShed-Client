@@ -157,6 +157,35 @@ class NoSQL:
             "nosql/create", params={"database_name": database_name}
         )
 
+SQLTypes = {
+    str: 0,
+    int: 1,
+    float: 2
+}
+
+class SQL:
+    def __init__(self, comms: Comms):
+        self.comms = comms
+
+    @typed_response(response_model=responseModels.JSONResponse)
+    def get(self, id):
+        return self.comms.get(f"sql/entity/get/{id}")
+
+    @typed_response(response_model=responseModels.JSONResponse)
+    def create(self, name, data, parent=None, children=[]):
+        type_ = SQLTypes.get(type(data), 3)
+        post_data = {
+            "name": name,
+            "data": data,
+            "type": type_
+        }
+        if parent:
+            post_data["parent"] = parent
+        if children:
+            post_data["children"] = children
+
+        return self.comms.post(f"sql/entity/create", data=post_data)
+
 
 class Timeseries:
     def __init__(self, comms: Comms) -> None:
@@ -186,9 +215,10 @@ class Timeseries:
 
 
 class QShedClient:
-    def __init__(self, gateway_address: str) -> None:
+    def __init__(self, gateway_address: str, config_file: str = "") -> None:
         self.comms = Comms(gateway_address)
         self.gateway = Gateway(self.comms)
         self.nosql = NoSQL(self.comms)
         self.scheduler = Scheduler(self.comms)
+        self.sql = SQL(self.comms)
         self.ts = Timeseries(self.comms)

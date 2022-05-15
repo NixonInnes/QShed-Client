@@ -1,3 +1,4 @@
+import json
 import pandas as pd
 from pydantic import BaseModel
 from typing import List, Dict, Optional, Any
@@ -38,7 +39,10 @@ class IntResponse(Response):
 
 
 class JSONResponse(Response):
-    content: Any
+    content: str
+
+    def _decode(self, content):
+        return json.loads(content)
 
 
 class ScheduleResponse(Response):
