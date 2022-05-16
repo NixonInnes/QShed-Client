@@ -47,14 +47,13 @@ class DataFrameModel(QShedModel):
         return pd.read_json(self.json_str)
 
 
-
 class SQLEntity(QShedModel):
     id: int
     name: str
-    data: str
+    data_: str
     type: int
 
-    types = {
+    __types = {
         0: str,
         1: int,
         2: float,
@@ -62,6 +61,8 @@ class SQLEntity(QShedModel):
     }
 
     def parse(self):
-        return self.types[self.type_](self.data)
+        return self.__types[self.type](self.data_)
 
-
+    @property
+    def data(self):
+        return self.parse()

@@ -3,12 +3,13 @@ import pandas as pd
 from pydantic import BaseModel
 from typing import List, Dict, Optional, Any
 
-from .data import Schedule
+from .data import Schedule, SQLEntity
 
 
 class Response(BaseModel):
     ok: bool = True
     message: str = ""
+    content: Optional[Any] = None
 
     @property
     def content_(self):
@@ -26,8 +27,12 @@ class DictResponse(Response):
     content: Dict[str, str]
 
 
-class ListResponse(Response):
+class StrListResponse(Response):
     content: List[str]
+
+
+class IntListResponse(Response):
+    content: List[int]
 
 
 class StrResponse(Response):
@@ -58,3 +63,9 @@ class TagResponse(Response):
 
     def _decode(self, content):
         return pd.read_json(content)
+
+
+class SQLEntityResponse(JSONResponse):
+
+    def _decode(self, content):
+        return SQLEntity.parse_obj(super()._decode(content))

@@ -31,6 +31,7 @@ class Comms:
             self.address + url_ext, data=data, params=params, headers=self.headers
         )
         if resp.ok:
+            print(resp.text)
             return resp.text
         else:
             raise Exception(f"Error {resp.status_code}: {resp.content}")
@@ -99,7 +100,7 @@ class NoSQLCollection:
             f"nosql/{self.database_name}/{self.name}/insert", data=data
         )
 
-    @typed_response(response_model=responseModels.ListResponse)
+    @typed_response(response_model=responseModels.StrListResponse)
     def insert_many(self, data: list) -> List[str]:
         return self.comms.post(
             f"nosql/{self.database_name}/{self.name}/insert/many", data=data
@@ -135,7 +136,7 @@ class NoSQLDatabase:
     def __getitem__(self, key: str) -> NoSQLCollection:
         return NoSQLCollection(self.comms, self.name, key)
 
-    @typed_response(response_model=responseModels.ListResponse)
+    @typed_response(response_model=responseModels.StrListResponse)
     def list(self) -> List[str]:
         return self.comms.get(f"nosql/{self.name}/list")
 
@@ -147,7 +148,7 @@ class NoSQL:
     def __getitem__(self, key: str) -> NoSQLDatabase:
         return NoSQLDatabase(self.comms, key)
 
-    @typed_response(response_model=responseModels.ListResponse)
+    @typed_response(response_model=responseModels.StrListResponse)
     def list(self) -> List[str]:
         return self.comms.get("nosql/list")
 
@@ -167,11 +168,11 @@ class SQL:
     def __init__(self, comms: Comms):
         self.comms = comms
 
-    @typed_response(response_model=responseModels.JSONResponse)
+    @typed_response(response_model=responseModels.SQLEntityResponse)
     def get(self, id):
         return self.comms.get(f"sql/entity/get/{id}")
 
-    @typed_response(response_model=responseModels.JSONResponse)
+    @typed_response(response_model=responseModels.SQLEntityResponse)
     def create(self, name, data, parent=None, children=[]):
         type_ = SQLTypes.get(type(data), 3)
         post_data = {

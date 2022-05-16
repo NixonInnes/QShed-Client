@@ -1,3 +1,4 @@
+
 def typed_response(response_model=None):
     def wrapper(func):
         def inner(*args, **kwargs):
