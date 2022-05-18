@@ -69,3 +69,9 @@ class SQLEntityResponse(JSONResponse):
 
     def _decode(self, content):
         return SQLEntity.parse_obj(super()._decode(content))
+
+
+class SQLEntityListResponse(JSONResponse):
+
+    def _decode(self, content) -> List:
+        return [SQLEntity.parse_obj(entity) for entity in super()._decode(content)]

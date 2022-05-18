@@ -172,6 +172,14 @@ class SQL:
     def get(self, id):
         return self.comms.get(f"sql/entity/get/{id}")
 
+    @typed_response(response_model=responseModels.SQLEntityListResponse)
+    def get_all(self):
+        return self.comms.get("sql/entity/all")
+
+    @typed_response(response_model=responseModels.SQLEntityListResponse)
+    def get_roots(self):
+        return self.comms.get("sql/entity/roots")
+
     @typed_response(response_model=responseModels.SQLEntityResponse)
     def create(self, name, data, parent=None, children=[]):
         type_ = SQLTypes.get(type(data), 3)
@@ -186,6 +194,8 @@ class SQL:
             post_data["children"] = children
 
         return self.comms.post(f"sql/entity/create", data=post_data)
+
+    
 
 
 class Timeseries:

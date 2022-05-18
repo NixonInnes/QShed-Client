@@ -1,7 +1,7 @@
 import json
 import yaml
 import pandas as pd
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 from pydantic import BaseModel, Field, validator
 
 from ..utils import string_hash
@@ -50,8 +50,11 @@ class DataFrameModel(QShedModel):
 class SQLEntity(QShedModel):
     id: int
     name: str
+    display_name: Optional[str]
     data_: str
     type: int
+    parent: Optional[int]
+    children: List
 
     __types = {
         0: str,
