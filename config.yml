@@ -1,0 +1,4 @@
+caching:
+  enabled: true
+  lifetime: 10
+  maxsize: 100

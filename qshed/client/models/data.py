@@ -69,3 +69,6 @@ class SQLEntity(QShedModel):
     @property
     def data(self):
         return self.parse()
+
+    def get_types(self):
+        return self.__types

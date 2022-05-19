@@ -5,9 +5,12 @@ import json
 from pydantic import parse_obj_as
 from datetime import datetime
 
+from . import config
+
 from .decorators import typed_response
 from .models import data as dataModels, response as responseModels
-from .utils import flatten_dict
+from .utils import flatten_dict, timed_lru_cache
+
 
 
 class Comms:
@@ -17,8 +20,30 @@ class Comms:
         self.address = address
         self.headers = {"Content-Type": "application/json"}
 
+    @timed_lru_cache(
+        seconds=config["caching"]["lifetime"], 
+        maxsize=config["caching"]["maxsize"]
+    )
+    def cached_get(self, address):
+        return requests.get(address)
+
+    def getter(self, address, params={}):
+        if config["caching"]["enabled"]:
+            if not params:
+                try:
+                    print("using cache")
+                    return self.cached_get(address)
+                except TypeError as t:
+                    print(t)
+                    print("not using cache")
+        return requests.get(address, params=params)
+
+    def poster(self, address, data="", params={}, headers={}):
+        return requests.post(address, data=data, params=params, headers=headers)
+
     def get(self, url_ext: str, params: dict = {}):
-        resp = requests.get(self.address + url_ext, params=params)
+        resp = self.getter(self.address + url_ext, params=params)
+
         if resp.ok:
             return resp.text
         else:
@@ -27,7 +52,7 @@ class Comms:
     def post(self, url_ext: str, params: dict = {}, data: dict = {}):
         if not isinstance(data, str):
             data = json.dumps(data)
-        resp = requests.post(
+        resp = self.poster(
             self.address + url_ext, data=data, params=params, headers=self.headers
         )
         if resp.ok:
@@ -181,8 +206,10 @@ class SQL:
         return self.comms.get("sql/entity/roots")
 
     @typed_response(response_model=responseModels.SQLEntityResponse)
-    def create(self, name, data, parent=None, children=[]):
-        type_ = SQLTypes.get(type(data), 3)
+    def create(self, name, data, type_=None, parent=None, children=[]):
+        if type_ is None:
+            type_ = SQLTypes.get(type(data), 3)
+
         post_data = {
             "name": name,
             "data": data,

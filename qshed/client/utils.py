@@ -1,6 +1,8 @@
 import hashlib
 from collections.abc import MutableMapping
 from typing import Dict
+from functools import lru_cache, wraps
+from datetime import datetime, timedelta
 
 
 def string_hash(string: str) -> str:
@@ -20,3 +22,19 @@ def _flatten_dict_gen(d, parent_key: str, sep: str):
 
 def flatten_dict(d: MutableMapping, parent_key: str = "", sep: str = ".") -> Dict:
     return dict(_flatten_dict_gen(d, parent_key, sep))
+
+
+def timed_lru_cache(seconds: int, maxsize: int = None):
+    def wrapper(wrapped_func):
+        func = lru_cache(maxsize=maxsize)(wrapped_func)
+        func.__lifetime = timedelta(seconds=seconds)
+        func.__expiration = datetime.utcnow() + func.__lifetime
+
+        @wraps(func)
+        def inner(*args, **kwargs):
+            if (now:=datetime.utcnow()) >= func.__expiration:
+                func.cache_clear()
+                func.__expiration = now + func.__lifetime
+            return func(*args, **kwargs)
+        return inner
+    return wrapper
