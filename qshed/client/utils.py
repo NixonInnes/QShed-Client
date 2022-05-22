@@ -3,6 +3,8 @@ from collections.abc import MutableMapping
 from typing import Dict
 from functools import lru_cache, wraps
 from datetime import datetime, timedelta
+import zlib
+import json, base64
 
 
 def string_hash(string: str) -> str:
@@ -38,3 +40,20 @@ def timed_lru_cache(seconds: int, maxsize: int = None):
             return func(*args, **kwargs)
         return inner
     return wrapper
+
+
+
+def zip_str(s):
+    return base64.b64encode(
+        zlib.compress(
+            s.encode("utf-8")
+        )
+    ).decode("ascii")
+
+
+def unzip_str(s):
+    try:
+        return zlib.decompress(base64.b64decode(s)).decode("utf-8")
+    except:
+        raise RuntimeError("Could not decode/unzip the contents")
+

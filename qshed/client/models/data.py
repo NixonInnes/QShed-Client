@@ -48,7 +48,7 @@ class DataFrameModel(QShedModel):
 
 
 class SQLEntity(QShedModel):
-    id: int
+    id: Optional[int] = None
     name: str
     display_name: Optional[str]
     data_: str
@@ -72,3 +72,8 @@ class SQLEntity(QShedModel):
 
     def get_types(self):
         return self.__types
+
+
+class TimeseriesRecord(QShedModel):
+    id: Optional[int] = None
+    name: str

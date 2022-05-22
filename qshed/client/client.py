@@ -3,14 +3,12 @@ import pandas as pd
 import requests
 import json
 from pydantic import parse_obj_as
-from datetime import datetime
-
+from datetime import datetime, timedelta
 from . import config
 
 from .decorators import typed_response
 from .models import data as dataModels, response as responseModels
 from .utils import flatten_dict, timed_lru_cache
-
 
 
 class Comms:
@@ -222,34 +220,58 @@ class SQL:
 
         return self.comms.post(f"sql/entity/create", data=post_data)
 
-    
-
 
 class Timeseries:
     def __init__(self, comms: Comms) -> None:
         self.comms = comms
 
-    @typed_response(response_model=responseModels.TagResponse)
+    @typed_response(response_model=responseModels.TimeseriesResponse)
     def get(
         self,
-        tag_name: str,
+        name: Union[str, int, dataModels.TimeseriesRecord],
         start: Optional[datetime] = None,
         end: Optional[datetime] = None,
     ) -> pd.DataFrame:
-        params = {}
-        if start:
-            params["start"] = datetime.strftime(start, "%y/%m/%d %H:%M:%S")
-        if end:
-            params["end"] = datetime.strftime(end, "%y/%m/%d %H:%M:%S")
-        return self.comms.get(f"timeseries/get/{tag_name}", params=params)
+        if end is None:
+            end = datetime.utcnow()
+        if start is None:
+            start = end - timedelta(days=365)
+        
+        params = dict(
+            start=start.strftime("%Y/%m/%d %H:%M:%S"),
+            end=end.strftime("%Y/%m/%d %H:%M:%S")
+        )
 
-    @typed_response(response_model=responseModels.StrResponse)
+        if isinstance(name, dataModels.TimeseriesRecord):
+            name = name.id
+            
+        if type(name) is int:
+            return self.comms.get(f"timeseries/get/id/{name}", params=params)
+        return self.comms.get(f"timeseries/get/{name}", params=params)
+
+    @typed_response(response_model=responseModels.TimeseriesRecordResponse)
+    def create(self, name):
+        record = dataModels.TimeseriesRecord(name=name)
+        return self.comms.post("timeseries/create", data=record.dict())
+
+    @typed_response(response_model=responseModels.TimeseriesResponse)
     def set(
         self,
-        tag_name: str,
+        name: Union[str, int],
         df: pd.DataFrame
-    ) -> str:
-        return self.comms.post(f"timeseries/set/{tag_name}", data={"json_str": df.to_json()})
+    ):
+        if type(name) is int:
+            return self.comms.post(f"timeseries/set/id/{name}", data={"json_str": df.to_json()})
+        return self.comms.post(f"timeseries/set/{name}", data={"json_str": df.to_json()})
+
+    @typed_response(response_model=responseModels.TimeseriesRecordListResponse)
+    def list(self):
+        return self.comms.get("timeseries/list")
+
+    @typed_response(response_model=responseModels.TimeseriesRecordListResponse)
+    def scan(self):
+        return self.comms.post("timeseries/scan")
+
 
 
 class QShedClient:
