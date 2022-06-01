@@ -1,7 +1,7 @@
 import json
 import yaml
-import pandas as pd
-from typing import Dict, Optional, List
+from pandas import DataFrame
+from typing import Dict, Optional, List, DateTime
 from pydantic import BaseModel, Field, validator
 
 from ..utils import string_hash
@@ -40,21 +40,14 @@ class Schedule(QShedModel):
         return self.request.get_collection_id()
 
 
-class DataFrameModel(QShedModel):
-    json_str: str
-
-    def parse(self):
-        return pd.read_json(self.json_str)
-
-
-class SQLEntity(QShedModel):
+class Entity(QShedModel):
     id: Optional[int] = None
     name: str
     display_name: Optional[str]
     data_: str
     type: int
     parent: Optional[int]
-    children: List
+    children: List[int]
 
     __types = {
         0: str,
@@ -63,17 +56,22 @@ class SQLEntity(QShedModel):
         3: json.loads
     }
 
-    def parse(self):
-        return self.__types[self.type](self.data_)
-
     @property
     def data(self):
-        return self.parse()
+        return self.__types[self.type](self.data_)
 
     def get_types(self):
         return self.__types
 
 
-class TimeseriesRecord(QShedModel):
-    id: Optional[int] = None
+class Timeseries(QShedModel):
     name: str
+    data: DateFrame
+    id: Optional[int] = None
+    start: Optional[DateTime] = None
+    end: Optional[DateTime] = None
+
+
+class CollectionDatabase(QShedModel):
+    name: str
+    id: Optional[int] = None

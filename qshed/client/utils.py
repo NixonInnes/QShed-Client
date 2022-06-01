@@ -7,6 +7,21 @@ import zlib
 import json, base64
 
 
+def typed_response(response_model=None):
+    def wrapper(func):
+        def inner(*args, **kwargs):
+            rtn = func(*args, **kwargs)
+            print(rtn)
+            resp = response_model.parse_raw(rtn)
+            if resp.ok:
+                return resp.content_
+            return None
+
+        return inner
+
+    return wrapper
+
+
 def string_hash(string: str) -> str:
     hash_obj = hashlib.sha256(bytes(string, "utf-8"))
     return hash_obj.hexdigest()

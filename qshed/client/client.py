@@ -6,9 +6,8 @@ from pydantic import parse_obj_as
 from datetime import datetime, timedelta
 from . import config
 
-from .decorators import typed_response
 from .models import data as dataModels, response as responseModels
-from .utils import flatten_dict, timed_lru_cache
+from .utils import typed_response, flatten_dict, timed_lru_cache
 
 
 class Comms:
