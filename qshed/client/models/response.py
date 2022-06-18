@@ -1,85 +1,69 @@
 import json
 import pandas as pd
-from pydantic import BaseModel
-from typing import List, Dict, Optional, Any
+from typing import Generic, TypeVar, Optional, List
 
-.data import as dataModels
-from ..utils import unzip_str
+from pydantic import BaseModel, validator, ValidationError
+from pydantic.generics import GenericModel
 
-
-class Response(BaseModel):
-    __DataModel = None
-    __multi = False
-    ok: bool = True
-    message: str = ""
-    content: Optional[Any] = None
-
-    def parse_content(self):
-        return self.content
-
-    def decode(self):
-        if self.content is None:
-            return None
-        if self.__multi:
-            return [
-            self.__DataModel.parse_obj(obj)
-            for obj in self.parse_content()
-        ]
-        return self.__DataModel.parse_obj(
-            self.parse_content()
-        )
+from . import data as dataModels
+from ..utils import zip_str, unzip_str
 
 
-class ScheduleResponse(Response):
-    __DataModel = dataModels.Schedule
-    content: Optional[dataModels.Schedule] = None
+DataType = TypeVar('DataType')
 
 
-class ListScheduleResponse(Response):
-    __DataModel = dataModels.Schedule
-    __multi = True
-    content: List[dataModels.Schedule] = []
+class Error(BaseModel):
+    code: int
+    message: str
+    _is_error: bool = True
 
 
-class TimeseriesResponse(Response):
-    __DataModel = dataModels.Timeseries
-    content: str
+class Response(GenericModel, Generic[DataType]):
+    data: Optional[DataType]
+    error: Optional[Error]
 
-    def parse_content(self):
-        return pd.read_json(unzip_str(self.content))
-
-
-class EntityResponse(Response):
-    __DataModel = dataModels.Entity
-    content: Optional[dataModels.Entity] = None
-
-
-class EntityListResponse(Response):
-    __DataModel = dataModels.Entity
-    __multi = True
-    content: List[dataModels.Entity] = []
+    @validator('error', always=True)
+    def check_consistency(cls, v, values):
+        if v is not None and values['data'] is not None:
+            raise ValueError('must not provide both data and error')
+        if v is None and values.get('data') is None:
+            raise ValueError('must provide data or error')
+        return v
 
 
-class CollectionDatabaseResponse(Response):
-    __DataModel = dataModels.CollectionDatabase
-    content = Optional[dataModels.CollectionDatabase] = None
+def error(code, message):
+    return Response(error=Error(code=code, message=message))
 
 
-class CollectionDatabaseListResponse(Response):
-    __DataModel = dataModels.CollectionDatabase
-    __multi = True
-    content: List[dataModels.CollectionDatabase] = []
+EntityResponse = Response[dataModels.Entity]
+EntityListResponse = Response[List[dataModels.Entity]]
+#TimeseriesResponse = Response[dataModels.Timeseries]
+TimeseriesListResponse = Response[List[dataModels.Timeseries]]
 
+def ts_response_json_loads(v):
+    dic = json.loads(v)
+    dic["data"]["data"] = pd.read_json(unzip_str(dic["data"]["data"]))
+    return dic
 
-class CollectionResponse(Response):
-    __DataModel = dataModels.Collection
-    content: Optional[dataModels.Collection] = None
+def ts_list_response_json_loads(v):
+    dic = json.loads(v)
+    for ts in dic["data"]:
+        ts["data"] = pd.read_json(unzip_str(ts["data"]))
+    return dic
 
+class TimeseriesResponse(Response[dataModels.Timeseries]):
+    class Config:
+        arbitrary_types_allowed = True
+        json_encoders = {
+            pd.DataFrame: lambda df: zip_str(df.to_json())
+        }
+        json_loads = ts_response_json_loads
 
-class CollectionListResponse(Response):
-    __DataModel = dataModels.Collection
-    __multi = True
-    content: List[dataModels.Collection] = []
-
-
+class TimeseriesListResponse(Response[List[dataModels.Timeseries]]):
+    class Config:
+        arbitrary_types_allowed = True
+        json_encoders = {
+            pd.DataFrame: lambda df: zip_str(df.to_json())
+        }
+        json_loads = ts_list_response_json_loads
 

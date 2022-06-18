@@ -1,43 +1,53 @@
 import json
 import yaml
-from pandas import DataFrame
-from typing import Dict, Optional, List, DateTime
+import pandas as pd
+from datetime import datetime
+from typing import Dict, Optional, List, Any
 from pydantic import BaseModel, Field, validator
+from pydantic.dataclasses import dataclass
 
-from ..utils import string_hash
+from ..utils import string_hash, zip_str, unzip_str
+
 
 
 class QShedModel(BaseModel):
+    _is_error = False
+
     def yaml(self) -> str:
         return yaml.dump(self.dict())
 
 
-class Request(QShedModel):
-    url: str
-    method: str
-    params: Dict[str, str] = Field({})
-    data: Dict[str, str] = Field({})
-    headers: Dict[str, str] = Field({})
-
-    @validator("method")
-    def validate_method(cls, method: str) -> str:
-        if method.lower() not in ("get", "post"):
-            raise ValueError("must be either 'get' or 'post'")
-        return method.lower()
-
-    def get_collection_id(self) -> str:
-        return string_hash(self.json())
+class QShedModelArb(QShedModel):
+    class Config:
+        arbitrary_types_allowed = True
 
 
-class Schedule(QShedModel):
-    request: Request
-    interval: int
-    id: Optional[str]
-    name: Optional[str]
-    next_run: Optional[float]
+# class Request(QShedModel):
+#     url: str
+#     method: str
+#     params: Dict[str, str] = Field({})
+#     data: Dict[str, str] = Field({})
+#     headers: Dict[str, str] = Field({})
 
-    def get_collection_id(self) -> str:
-        return self.request.get_collection_id()
+#     @validator("method")
+#     def check_valid_method(cls, method: str) -> str:
+#         if method.lower() not in ("get", "post"):
+#             raise ValueError("must be either 'get' or 'post'")
+#         return method.lower()
+
+#     def get_collection_id(self) -> str:
+#         return string_hash(self.json())
+
+
+# class Schedule(QShedModel):
+#     request: Request
+#     interval: int
+#     id: Optional[str]
+#     name: Optional[str]
+#     next_run: Optional[float]
+
+#     def get_collection_id(self) -> str:
+#         return self.request.get_collection_id()
 
 
 class Entity(QShedModel):
@@ -47,7 +57,7 @@ class Entity(QShedModel):
     data_: str
     type: int
     parent: Optional[int]
-    children: List[int]
+    children: Optional[List[int]] = Field([])
 
     __types = {
         0: str,
@@ -64,14 +74,37 @@ class Entity(QShedModel):
         return self.__types
 
 
+def ts_json_loads(v):
+    dic = json.loads(v)
+    dic["data"] = pd.read_json(unzip_str(dic["data"]))
+    return dic
+
+
 class Timeseries(QShedModel):
     name: str
-    data: DateFrame
+    data: pd.DataFrame
     id: Optional[int] = None
-    start: Optional[DateTime] = None
-    end: Optional[DateTime] = None
+    start: Optional[datetime] = None
+    end: Optional[datetime] = None
+
+    class Config:
+        arbitrary_types_allowed = True
+        json_encoders = {
+            pd.DataFrame: lambda df: zip_str(df.to_json())
+        }
+        json_loads = ts_json_loads
 
 
 class CollectionDatabase(QShedModel):
     name: str
     id: Optional[int] = None
+
+
+class Collection(QShedModel):
+    name: str
+    id: Optional[int] = None
+    database_id: Optional[int] = None
+    query: Optional[Dict] = Field({})
+    limit: Optional[int] = None
+    data: str
+
