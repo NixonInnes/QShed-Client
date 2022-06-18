@@ -58,6 +58,8 @@ class Entity(QShedModel):
     type: int
     parent: Optional[int]
     children: Optional[List[int]] = Field([])
+    timeseries: Optional[List[int]] = Field([])
+    collections: Optional[List[int]] = Field([])
 
     __types = {
         0: str,
@@ -83,6 +85,7 @@ def ts_json_loads(v):
 class Timeseries(QShedModel):
     name: str
     data: pd.DataFrame
+    entity: Optional[int]
     id: Optional[int] = None
     start: Optional[datetime] = None
     end: Optional[datetime] = None
@@ -98,13 +101,15 @@ class Timeseries(QShedModel):
 class CollectionDatabase(QShedModel):
     name: str
     id: Optional[int] = None
+    collections: List[int] = Field([])
 
 
 class Collection(QShedModel):
     name: str
+    database: int
+    data: Optional[Dict] = None
+    entity: Optional[int]
     id: Optional[int] = None
-    database_id: Optional[int] = None
     query: Optional[Dict] = Field({})
     limit: Optional[int] = None
-    data: str
-
+    

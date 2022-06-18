@@ -66,3 +66,7 @@ class TimeseriesListResponse(Response[List[dataModels.Timeseries]]):
         }
         json_loads = ts_list_response_json_loads
 
+CollectionResponse = Response[dataModels.Collection]
+CollectionListResponse = Response[List[dataModels.Collection]]
+CollectionDatabaseResponse = Response[dataModels.CollectionDatabase]
+CollectionDatabaseListResponse = Response[List[dataModels.CollectionDatabase]]
