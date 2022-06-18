@@ -245,6 +245,11 @@ class TimeseriesModule:
         return self.comms.post("timeseries/create", data=timeseries.json())
 
 
+    @typed_response(response_model=responseModels.TimeseriesResponse)
+    def add(self, timeseries: dataModels.Timeseries):
+        return self.comms.post("timeseries/add", data=timeseries.json())
+
+
 #     @typed_response(response_model=responseModels.TimeseriesResponse)
 #     def get(
 #         self,

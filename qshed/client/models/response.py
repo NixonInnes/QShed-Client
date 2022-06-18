@@ -37,8 +37,7 @@ def error(code, message):
 
 EntityResponse = Response[dataModels.Entity]
 EntityListResponse = Response[List[dataModels.Entity]]
-#TimeseriesResponse = Response[dataModels.Timeseries]
-TimeseriesListResponse = Response[List[dataModels.Timeseries]]
+
 
 def ts_response_json_loads(v):
     dic = json.loads(v)
