@@ -107,7 +107,7 @@ class CollectionDatabase(QShedModel):
 class Collection(QShedModel):
     name: str
     database: int
-    data: Optional[Dict] = None
+    data: Optional[List] = Field([])
     entity: Optional[int]
     id: Optional[int] = None
     query: Optional[Dict] = Field({})

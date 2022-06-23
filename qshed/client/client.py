@@ -63,13 +63,13 @@ class Comms:
             raise Exception(f"Error {resp.status_code}: {resp.content}")
 
 
-class Module:
+class BaseModule:
     def __init__(self, comms: Comms) -> None:
         self.comms = comms
         self.logger = logging.getLogger(self.__class__.__name__)
 
 
-class Gateway(Module):
+class GatewayModule(BaseModule):
     def ping(self):
         return self.comms.get(f"ping")
 
@@ -122,7 +122,6 @@ class EntityModule(BaseModule):
         )
 
 
-
 class TimeseriesModule(BaseModule):
     @typed_response(response_model=responseModels.TimeseriesListResponse)
     def get(
@@ -162,10 +161,27 @@ class TimeseriesModule(BaseModule):
 
 class CollectionModule(BaseModule):
     @typed_response(response_model=responseModels.CollectionListResponse)
-    def get(self, *ids: List[int]):
-        return self.comms.get(f"collection/get", params={"id": ids})
+    def get(self, *ids: List[int], limit: int = 10, query: Optional[Dict] = None):
+        params = {
+            "id": ids,
+            "limit": limit,
+        }
+        if query is not None:
+            params["query"] = query
 
+        return self.comms.get(f"collection/get", params=params)
 
+    @typed_response(response_model=responseModels.CollectionResponse)
+    def create(self, collection: dataModels.Collection):
+        return self.comms.post("collection/create", data=collection.json())
+
+    @typed_response(response_model=responseModels.CollectionDatabaseListResponse)
+    def get_database(self, *ids: List[int]):
+        return self.comms.get("collection/database/get", params={"id": ids})
+
+    @typed_response(response_model=responseModels.CollectionDatabaseResponse)
+    def create_database(self, collection_db: dataModels.CollectionDatabase):
+        return self.comms.post("collection/database/create", data=collection_db.json())
 
 
 class QShedClient:
