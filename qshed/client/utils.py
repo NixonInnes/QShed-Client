@@ -3,20 +3,21 @@ from collections.abc import MutableMapping
 from typing import Dict
 from functools import lru_cache, wraps
 from datetime import datetime, timedelta
+from pydantic import BaseModel, create_model
 import zlib
 import json, base64
 
 
-def typed_response(response_model=None):
-    def wrapper(func):
-        def inner(*args, **kwargs):
-            rtn = func(*args, **kwargs)
-            response = response_model.parse_raw(rtn)
-            if response.error:
-                return response.error
-            return response.data
-        return inner
-    return wrapper
+def typed_response(func):
+    def inner(*args, **kwargs):
+        rtn = func(*args, **kwargs)
+        response_type = func.__annotations__["return"]
+        response = response_type.parse_raw(rtn)
+        if response.error:
+            return response.error
+        return response.data
+
+    return inner
 
 
 def string_hash(string: str) -> str:
@@ -46,21 +47,18 @@ def timed_lru_cache(seconds: int, maxsize: int = None):
 
         @wraps(func)
         def inner(*args, **kwargs):
-            if (now:=datetime.utcnow()) >= func.__expiration:
+            if (now := datetime.utcnow()) >= func.__expiration:
                 func.cache_clear()
                 func.__expiration = now + func.__lifetime
             return func(*args, **kwargs)
+
         return inner
+
     return wrapper
 
 
-
 def zip_str(s):
-    return base64.b64encode(
-        zlib.compress(
-            s.encode("utf-8")
-        )
-    ).decode("ascii")
+    return base64.b64encode(zlib.compress(s.encode("utf-8"))).decode("ascii")
 
 
 def unzip_str(s):
@@ -68,4 +66,3 @@ def unzip_str(s):
         return zlib.decompress(base64.b64decode(s)).decode("utf-8")
     except:
         raise RuntimeError("Could not decode/unzip the contents")
-

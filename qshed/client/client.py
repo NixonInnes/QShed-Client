@@ -21,8 +21,7 @@ class Comms:
         self.logger = logging.getLogger(self.__class__.__name__)
 
     @timed_lru_cache(
-        seconds=config["caching"]["lifetime"], 
-        maxsize=config["caching"]["maxsize"]
+        seconds=config["caching"]["lifetime"], maxsize=config["caching"]["maxsize"]
     )
     def cached_get(self, address):
         self.logger.debug("Returning cached response")
@@ -74,94 +73,62 @@ class GatewayModule(BaseModule):
         return self.comms.get(f"ping")
 
 
-# class Scheduler:
-#     def __init__(self, comms: Comms) -> None:
-#         self.comms = comms
-#         self.logger = logging.getLogger(self.__class__.__name__)
-
-#     @typed_response(response_model=responseModels.StrResponse)
-#     def add(
-#         self,
-#         url: str,
-#         interval: int,
-#         method: str = "get",
-#         params: Dict[str, str] = {},
-#         data: Dict[str, Optional[str]] = {},
-#         headers: Dict[str, str] = {},
-#     ) -> str:
-#         request = dataModels.Request(
-#             method=method, url=url, params=params, data=data, headers=headers
-#         )
-#         schedule = dataModels.Schedule(interval=interval, request=request)
-#         return self.comms.post(f"scheduler/add", data=schedule.json(exclude_none=True))
-
-#     @typed_response(response_model=responseModels.SchedulesResponse)
-#     def list(self) -> List[dataModels.Schedule]:
-#         return self.comms.get("scheduler/list")
-
-
-
 class EntityModule(BaseModule):
-    @typed_response(response_model=responseModels.EntityListResponse)
-    def get(self, *ids: List[int]):
+    @typed_response
+    def get(self, *ids: List[int]) -> responseModels.EntityListResponse:
         return self.comms.get(f"entity/get", params={"id": ids})
 
-    @typed_response(response_model=responseModels.EntityListResponse)
-    def get_roots(self):
+    @typed_response
+    def get_roots(self) -> responseModels.EntityListResponse:
         return self.comms.get("entity/get_roots")
 
-    @typed_response(response_model=responseModels.EntityResponse)
-    def create(self, entity: dataModels.Entity):
+    @typed_response
+    def create(self, entity: dataModels.Entity) -> responseModels.EntityResponse:
         return self.comms.post("entity/create", data=entity.json())
 
-    @typed_response(response_model=responseModels.EntityListResponse)
-    def create_many(self, *entities: List[dataModels.Entity]):
+    @typed_response
+    def create_many(
+        self, *entities: List[dataModels.Entity]
+    ) -> responseModels.EntityListResponse:
         return self.comms.post(
-            "entity/create_many", 
-            data=[entity.dict() for entity in entities]
+            "entity/create_many", data=[entity.dict() for entity in entities]
         )
 
 
 class TimeseriesModule(BaseModule):
-    @typed_response(response_model=responseModels.TimeseriesListResponse)
+    @typed_response
     def get(
-        self, 
-        *ids: List[int], 
+        self,
+        *ids: List[int],
         start: Optional[datetime] = None,
-        end: Optional[datetime] = None
-    ):
+        end: Optional[datetime] = None,
+    ) -> responseModels.TimeseriesListResponse:
         if end is None:
             end = datetime.utcnow()
         if start is None:
             start = end - timedelta(days=365)
 
-        params = dict(
-            start=start.timestamp(),
-            end=end.timestamp(),
-            id=ids
-        )
+        params = dict(start=start.timestamp(), end=end.timestamp(), id=ids)
         return self.comms.get("timeseries/get", params=params)
 
-    @typed_response(response_model=responseModels.TimeseriesResponse)
-    def create(self, timeseries: dataModels.Timeseries):
+    @typed_response
+    def create(
+        self, timeseries: dataModels.Timeseries
+    ) -> responseModels.TimeseriesResponse:
         return self.comms.post("timeseries/create", data=timeseries.json())
 
-    @typed_response(response_model=responseModels.TimeseriesResponse)
-    def add(self, timeseries: dataModels.Timeseries):
+    @typed_response
+    def add(
+        self, timeseries: dataModels.Timeseries
+    ) -> responseModels.TimeseriesResponse:
         return self.comms.post("timeseries/add", data=timeseries.json())
-
-#     @typed_response(response_model=responseModels.TimeseriesRecordListResponse)
-#     def list(self):
-#         return self.comms.get("timeseries/list")
-
-#     @typed_response(response_model=responseModels.TimeseriesRecordListResponse)
-#     def scan(self):
-#         return self.comms.post("timeseries/scan")
 
 
 class CollectionModule(BaseModule):
-    @typed_response(response_model=responseModels.CollectionListResponse)
-    def get(self, *ids: List[int], limit: int = 10, query: Optional[Dict] = None):
+    @typed_response
+    def get(
+        self, *ids: List[int], limit: int = 10, query: Optional[Dict] = None
+    ) -> responseModels.CollectionListResponse:
         params = {
             "id": ids,
             "limit": limit,
@@ -171,17 +138,33 @@ class CollectionModule(BaseModule):
 
         return self.comms.get(f"collection/get", params=params)
 
-    @typed_response(response_model=responseModels.CollectionResponse)
-    def create(self, collection: dataModels.Collection):
+    @typed_response
+    def create(
+        self, collection: dataModels.Collection
+    ) -> responseModels.CollectionResponse:
         return self.comms.post("collection/create", data=collection.json())
 
-    @typed_response(response_model=responseModels.CollectionDatabaseListResponse)
-    def get_database(self, *ids: List[int]):
+    @typed_response
+    def get_database(
+        self, *ids: List[int]
+    ) -> responseModels.CollectionDatabaseListResponse:
         return self.comms.get("collection/database/get", params={"id": ids})
 
-    @typed_response(response_model=responseModels.CollectionDatabaseResponse)
-    def create_database(self, collection_db: dataModels.CollectionDatabase):
+    @typed_response
+    def create_database(
+        self, collection_db: dataModels.CollectionDatabase
+    ) -> responseModels.CollectionDatabaseResponse:
         return self.comms.post("collection/database/create", data=collection_db.json())
+
+
+class DataModelModule(BaseModule):
+    def get_definition(self, name: str):
+        return self.comms.get(f"datamodel/{name}/definition")
+
+    def save_definition(self, name: str, datamodel: dataModels.DataModel):
+        return self.comms.post(
+            f"datamodel/{name}/definition", data=datamodel.get_definition()
+        )
 
 
 class QShedClient:
@@ -191,6 +174,7 @@ class QShedClient:
         self.entity = EntityModule(self.comms)
         self.timeseries = TimeseriesModule(self.comms)
         self.collection = CollectionModule(self.comms)
+        self.datamodel = DataModelModule(self.comms)
 
     @property
     def ts(self):
@@ -199,4 +183,3 @@ class QShedClient:
     @property
     def col(self):
         return self.collection
-
